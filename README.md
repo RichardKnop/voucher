@@ -2,42 +2,79 @@
 
 ## Run the App
 
-If you have local development environmet set up, you can just do:
-
-```sh
-GO111MODULE=on go run main.go
-```
-
-And the app will be running at the address `0.0.0.0:8080`.
-
-Alternatively, you can use `docker-compose`:
+Easiest is to use `docker-compose`:
 
 ```sh
 docker-compose up
 ```
 
-Or build an image with `docker`:
+And the app will be running at the address `0.0.0.0:8080`.
+
+Alternatively you can run it manually if you have Redis running on localhost:
 
 ```sh
-docker build -t voucher .
-```
-
-And run it:
-
-```sh
-docker run --publish 8080:8080 --name test --rm voucher
-
+GO111MODULE=on go run main.go
 ```
 
 ## API
 
 ### Create a new voucher
 
+Let's create couple of vouchers:
+
+```sh
 curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"foo","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"bar","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"qux","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"foo1","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"bar1","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"qux1","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"foo2","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"bar2","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"qux2","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"foo3","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"bar3","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"qux3","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
+```
+
+### List vouchers
+
+```sh
+curl 0.0.0.0:8080/vouchers
+```
+
+Which will return list of vouchers:
+
+```json
+{
+	"cursor": 0,
+	"nextCursor": 0,
+	"vouchers": [{
+		"id": "qux",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "bar",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "foo",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}]
+}
+```
+
+You can use `nextCursoor` for pagination. If it is zero, it means there is no more results.
 
 ### Retrieve voucher by ID
 
+```sh
 curl 0.0.0.0:8080/vouchers/foo
+```
 
 ## Development Setup
 

@@ -5,13 +5,22 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/RichardKnop/voucher/pb"
 	"github.com/go-redis/redis"
 )
 
-const countPerPage = int64(10)
+const (
+	defaultPageSize = int64(10)
+	prefix          = "voucher_"
+	index = "__index__"
+)
+
+var (
+	isAlpha = regexp.MustCompile(`^[A-Za-z]+$`).MatchString
+)
 
 type impl struct {
 	redisClient *redis.Client
@@ -21,12 +30,20 @@ type impl struct {
 type IFace interface {
 	Create(data []byte) (*pb.Voucher, int64, error)
 	FindByID(voucherID string) (*pb.Voucher, int64, error)
-	FindAll(cursor uint64) ([]*pb.Voucher, uint64, int64, error)
+	FindAll(offset, count int64) ([]*pb.Voucher, int64, int64, error)
 }
 
 // New ...
 func New(redisClient *redis.Client) IFace {
 	return &impl{redisClient: redisClient}
+}
+
+// ValidateVoucherID ...
+func ValidateVoucherID(voucherID string) error {
+	if !isAlpha(voucherID) {
+		return errors.New("voucher ID must be alphanumeric")
+	}
+	return nil
 }
 
 // Create ...
@@ -38,8 +55,9 @@ func (svc *impl) Create(data []byte) (*pb.Voucher, int64, error) {
 
 	// validate voucher ID
 	if voucher.Id == "" {
-		return nil, http.StatusBadRequest, errors.New("voucher.Id cannot be empty")
+		return nil, http.StatusBadRequest, errors.New("voucher ID cannot be empty")
 	}
+	voucher.Id = fmt.Sprintf("%s%s", prefix, voucher.Id)
 
 	// validade createdAt and expiresAt
 	now := time.Now()
@@ -47,11 +65,11 @@ func (svc *impl) Create(data []byte) (*pb.Voucher, int64, error) {
 	createdAt := parseTime(voucher.CreatedAt, now)
 	voucher.CreatedAt = createdAt.Format(time.RFC3339)
 
-	expiresAt := parseTime(voucher.CreatedAt, time.Time{})
+	expiresAt := parseTime(voucher.ExpiresAt, time.Time{})
 	expires := time.Duration(0)
 	if !expiresAt.IsZero() {
 		if expiresAt.Before(now) {
-			return nil, http.StatusBadRequest, errors.New("voucher.ExpiresAt must be in the future")
+			return nil, http.StatusBadRequest, errors.New("voucher expiresAt must be in the future")
 		}
 		expires = expiresAt.Sub(now)
 	}
@@ -63,12 +81,18 @@ func (svc *impl) Create(data []byte) (*pb.Voucher, int64, error) {
 		return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
 	}
 	if exists == 1 {
-		return nil, http.StatusInternalServerError, errors.New("voucher.Id already used")
+		return nil, http.StatusInternalServerError, errors.New("voucher ID already used")
 	}
 
-	// 0 means no expiration
-	if err := svc.redisClient.Set(voucher.Id, data, expires).Err(); err != nil {
-		return nil, http.StatusInternalServerError, err
+	// Store the voucher and add the key to the index
+	_, err = svc.redisClient.Pipelined(func(pipe redis.Pipeliner) error {
+		if setErr := svc.redisClient.Set(voucher.Id, data, expires).Err(); setErr != nil {
+			return setErr
+		}
+		return svc.redisClient.ZAdd(index, redis.Z{Score: 0, Member: voucher.Id}).Err()
+	})
+	if err != nil {
+		return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
 	}
 
 	return voucher, 0, nil
@@ -76,10 +100,12 @@ func (svc *impl) Create(data []byte) (*pb.Voucher, int64, error) {
 
 // FindByID ...
 func (svc *impl) FindByID(voucherID string) (*pb.Voucher, int64, error) {
+	voucherID = fmt.Sprintf("%s%s", prefix, voucherID)
+
 	data, err := svc.redisClient.Get(voucherID).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, http.StatusNotFound, errors.New("voucher.Id not found")
+			return nil, http.StatusNotFound, errors.New("voucher ID not found")
 		} else {
 			return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
 		}
@@ -94,21 +120,23 @@ func (svc *impl) FindByID(voucherID string) (*pb.Voucher, int64, error) {
 }
 
 // FindAll ...
-func (svc *impl) FindAll(cursor uint64) ([]*pb.Voucher, uint64, int64, error) {
-	var (
-		n    int
-		keys []string
-		err  error
-	)
-	for {
-		keys, cursor, err = svc.redisClient.Scan(cursor, "*", countPerPage).Result()
-		if err != nil {
-			return nil, 0, http.StatusInternalServerError, err
-		}
-		n += len(keys)
-		if cursor == 0 {
-			break
-		}
+func (svc *impl) FindAll(offset, count int64) ([]*pb.Voucher, int64, int64, error) {
+	if count <= 0 {
+		count = defaultPageSize
+	}
+
+	total := svc.redisClient.ZCount(index, "-inf", "+inf").Val()
+	if offset >= total {
+		return []*pb.Voucher{}, 0, 0, nil
+	}
+
+	keys, err := svc.redisClient.ZRange(index, offset, offset+count-1).Result()
+	if err != nil {
+		return nil, 0, http.StatusInternalServerError, err
+	}
+
+	if len(keys) < 1 {
+		return []*pb.Voucher{}, 0, 0, nil
 	}
 
 	datas, err := svc.redisClient.MGet(keys...).Result()
@@ -130,7 +158,12 @@ func (svc *impl) FindAll(cursor uint64) ([]*pb.Voucher, uint64, int64, error) {
 		vouchers = append(vouchers, voucher)
 	}
 
-	return vouchers, cursor, 0, nil
+	nextOffset := offset + count
+	if nextOffset >= total {
+		nextOffset = -1
+	}
+
+	return vouchers, nextOffset, 0, nil
 }
 
 func parseTime(val string, defaultVal time.Time) time.Time {

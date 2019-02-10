@@ -20,15 +20,19 @@ type VoucherHandler struct {
 
 func (h *VoucherHandler) handleGetIndex(w http.ResponseWriter, r *http.Request) {
 	f := func(ctx context.Context) (interface{}, int64, error) {
-		cursorParam := r.URL.Query().Get("cursor")
-		cursor, _ := strconv.Atoi(cursorParam)
-		vouchers, nextCursor, httpErrCode, err := h.svc.FindAll(uint64(cursor))
+		offsetParam := r.URL.Query().Get("offset")
+		offset, _ := strconv.Atoi(offsetParam)
+
+		countParam := r.URL.Query().Get("count")
+		count, _ := strconv.Atoi(countParam)
+
+		vouchers, nextOffset, httpErrCode, err := h.svc.FindAll(int64(offset), int64(count))
 		if err != nil {
 			return nil, httpErrCode, err
 		}
 		return map[string]interface{}{
-			"cursor":     cursor,
-			"nextCursor": nextCursor,
+			"offset":     offset,
+			"nextOffset": nextOffset,
 			"vouchers":   vouchers,
 		}, 0, nil
 	}
