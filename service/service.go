@@ -53,56 +53,63 @@ func ValidateVoucherID(voucherID string) error {
 func (svc *impl) Create(data []byte) (*pb.Voucher, int64, error) {
 	voucher := new(pb.Voucher)
 	if err := json.Unmarshal(data, voucher); err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to unmarshal data into voucher entity: %s", err)
+		return nil, http.StatusBadRequest, fmt.Errorf("Create: failed to unmarshal data into voucher entity: %s", err)
 	}
 
 	// validate voucher data
-	_, httpErrCode, err := validateVoucherData(voucher)
+	_, httpErrCode, err := validateVoucherData(voucher, "")
 	if err != nil {
 		return nil, httpErrCode, err
 	}
 
+	redisKey := fmt.Sprintf("%s%s", prefix, voucher.Id)
+
 	// check if voucher already exists
-	exists, err := svc.redisClient.Exists(voucher.Id).Result()
+	exists, err := svc.redisClient.Exists(redisKey).Result()
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("Create: redis error: %s", err)
 	}
 	if exists == 1 {
-		return nil, http.StatusInternalServerError, errors.New("voucher ID already used")
+		return nil, http.StatusInternalServerError, errors.New("Create: voucher ID already used")
+	}
+
+	httpErrCode, err = svc.createVoucher(redisKey, data)
+	if err != nil {
+		return nil, httpErrCode, err
 	}
 
 	// Store the voucher and add the key to the index
 	_, err = svc.redisClient.Pipelined(func(pipe redis.Pipeliner) error {
-		if setErr := svc.redisClient.Set(voucher.Id, data, 0).Err(); setErr != nil { // 0 so we don't expire keys
+		if setErr := svc.redisClient.Set(redisKey, data, 0).Err(); setErr != nil { // 0 so we don't expire keys
 			return setErr
 		}
-		return svc.redisClient.ZAdd(index, redis.Z{Score: 0, Member: voucher.Id}).Err()
+		return svc.redisClient.ZAdd(index, redis.Z{Score: 0, Member: redisKey}).Err()
 	})
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("Create: redis error: %s", err)
 	}
 
-	log.Printf("Created a new voucher \"%s\"", voucher.Id)
+	log.Printf("Created a new voucher \"%s\"", redisKey)
 
 	return voucher, 0, nil
 }
 
 // FindByID ...
 func (svc *impl) FindByID(voucherID string) (*pb.Voucher, int64, error) {
-	voucherID = fmt.Sprintf("%s%s", prefix, voucherID)
+	redisKey := fmt.Sprintf("%s%s", prefix, voucherID)
 
-	data, err := svc.redisClient.Get(voucherID).Bytes()
+	data, err := svc.redisClient.Get(redisKey).Bytes()
 	if err != nil {
 		if err == redis.Nil {
-			return nil, http.StatusNotFound, errors.New("voucher ID not found")
+			return nil, http.StatusNotFound, errors.New("FindByID: voucher ID not found")
 		} else {
-			return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
+			return nil, http.StatusInternalServerError, fmt.Errorf("FindByID: redis error: %s", err)
 		}
 	}
 
 	voucher := new(pb.Voucher)
 	if err := json.Unmarshal(data, voucher); err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("failed to unmarshal data into voucher entity: %s", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("FindByID: failed to unmarshal data into voucher entity: %s", err)
 	}
 
 	return voucher, 0, nil
@@ -144,7 +151,7 @@ func (svc *impl) FindAll(offset, count int64) ([]*pb.Voucher, int64, int64, erro
 
 		voucher := new(pb.Voucher)
 		if err := json.Unmarshal([]byte(data), voucher); err != nil {
-			return nil, 0, http.StatusInternalServerError, fmt.Errorf("failed to unmarshal data into voucher entity: %s", err)
+			return nil, 0, http.StatusInternalServerError, fmt.Errorf("FindAll: failed to unmarshal data into voucher entity: %s", err)
 		}
 		vouchers = append(vouchers, voucher)
 	}
@@ -159,58 +166,92 @@ func (svc *impl) FindAll(offset, count int64) ([]*pb.Voucher, int64, int64, erro
 
 // DeleteByID ...
 func (svc *impl) DeleteByID(voucherID string) (int64, error) {
-	log.Printf("Deleting voucher \"%s\"", voucherID)
+	// Check the voucher exists before we attempt to delete it
+	_, httpErrCode, err := svc.FindByID(voucherID)
+	if err != nil {
+		return httpErrCode, fmt.Errorf("DeleteByID: voucher not found: %s", err)
+	}
 
-	voucherID = fmt.Sprintf("%s%s", prefix, voucherID)
+	redisKey := fmt.Sprintf("%s%s", prefix, voucherID)
 
 	// Delete the voucher and the key from the index
-	_, err := svc.redisClient.Pipelined(func(pipe redis.Pipeliner) error {
-		if delErr := svc.redisClient.Del(voucherID).Err(); delErr != nil {
+	_, err = svc.redisClient.Pipelined(func(pipe redis.Pipeliner) error {
+		if delErr := svc.redisClient.Del(redisKey).Err(); delErr != nil {
 			return delErr
 		}
-		return svc.redisClient.ZRem(index, voucherID).Err()
+		return svc.redisClient.ZRem(index, redisKey).Err()
 	})
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
+		return http.StatusInternalServerError, fmt.Errorf("DeleteByID: redis error: %s", err)
 	}
+
+	log.Printf("Deleted voucher \"%s\"", voucherID)
+
 	return 0, nil
 }
 
 // UpdateByID ...
 func (svc *impl) UpdateByID(voucherID string, data []byte) (*pb.Voucher, int64, error) {
-	_, httpErrCode, err := svc.FindByID(voucherID)
-	if err != nil {
-		return nil, httpErrCode, err
-	}
+	log.Printf("Updating voucher \"%s\"", voucherID)
 
-	updatedVoucher := new(pb.Voucher)
-	if err := json.Unmarshal(data, updatedVoucher); err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf("failed to unmarshal data into voucher entity: %s", err)
+	voucher := new(pb.Voucher)
+	if err := json.Unmarshal(data, voucher); err != nil {
+		return nil, http.StatusBadRequest, fmt.Errorf("UpdateByID: failed to unmarshal data into voucher entity: %s", err)
 	}
 
 	// validate voucher data
-	_, httpErrCode, err = validateVoucherData(updatedVoucher)
+	_, httpErrCode, err := validateVoucherData(voucher, voucherID)
 	if err != nil {
 		return nil, httpErrCode, err
 	}
 
-	// Update the voucher data, the voucher is already indexed so no need to use pipeline to update that
-	if err := svc.redisClient.Set(updatedVoucher.Id, data, 0).Err(); err != nil { // 0 so we don't expire keys
-		return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
+	redisKey := fmt.Sprintf("%s%s", prefix, voucher.Id)
+
+	_, httpErrCode, err = svc.FindByID(redisKey)
+	if err != nil {
+		// doesn't exist yet, PUT should create new resource
+		httpErrCode, err = svc.createVoucher(redisKey, data)
+		if err != nil {
+			return nil, httpErrCode, err
+		}
+		return voucher, 0, nil
 	}
 
-	log.Printf("Updated voucher \"%s\"", updatedVoucher.Id)
+	// Update the voucher data, the voucher is already indexed so no need to use pipeline to update that
+	if err := svc.redisClient.Set(redisKey, data, 0).Err(); err != nil { // 0 so we don't expire keys
+		return nil, http.StatusInternalServerError, fmt.Errorf("UpdateByID: redis error: %s", err)
+	}
 
-	return updatedVoucher, 0, nil
+	log.Printf("Updated voucher \"%s\"", voucher.Id)
+
+	return voucher, 0, nil
 }
 
-func validateVoucherData(voucher *pb.Voucher) (time.Duration, int64, error) {
+func (svc *impl) createVoucher(redisKey string, data []byte) (int64, error) {
+	// Store the voucher and add the key to the index
+	_, err := svc.redisClient.Pipelined(func(pipe redis.Pipeliner) error {
+		if setErr := svc.redisClient.Set(redisKey, data, 0).Err(); setErr != nil { // 0 so we don't expire keys
+			return setErr
+		}
+		return svc.redisClient.ZAdd(index, redis.Z{Score: 0, Member: redisKey}).Err()
+	})
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("Create: redis error: %s", err)
+	}
+	return 0, nil
+}
+
+// second argument voucherID is optional, if set, we will compare it with voucher ID in the data payload,
+// this is to make sure the ID is the same in the resource URI and in the payload
+func validateVoucherData(voucher *pb.Voucher, voucherID string) (time.Duration, int64, error) {
 	// validate voucher ID
 	if voucher.Id == "" {
 		// todo - here it would be better to fallback to generating random ID
 		return 0, http.StatusBadRequest, errors.New("voucher ID cannot be empty")
 	}
-	voucher.Id = fmt.Sprintf("%s%s", prefix, voucher.Id)
+	if voucherID != voucherID && voucherID != voucher.Id {
+		return 0, http.StatusBadRequest, errors.New("voucher ID mismatch")
+	}
 
 	// validade createdAt and expiresAt
 	now := time.Now()

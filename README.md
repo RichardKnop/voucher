@@ -40,27 +40,62 @@ curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"qux3","name":"Save £20 at Tesco","
 ### List vouchers
 
 ```sh
-curl 0.0.0.0:8080/vouchers
+curl -v 0.0.0.0:8080/vouchers
 ```
 
 Which will return list of vouchers:
 
 ```json
 {
+	"nextOffset": 10,
 	"offset": 0,
-	"nextOffset": 0,
 	"vouchers": [{
-		"id": "qux",
-		"name": "Save £20 at Tesco",
-		"brand": "Tesco",
-		"value": "20"
-	}, {
 		"id": "bar",
 		"name": "Save £20 at Tesco",
 		"brand": "Tesco",
 		"value": "20"
 	}, {
+		"id": "bar1",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "bar2",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "bar3",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
 		"id": "foo",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "foo1",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "foo2",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "foo3",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "qux",
+		"name": "Save £20 at Tesco",
+		"brand": "Tesco",
+		"value": "20"
+	}, {
+		"id": "qux1",
 		"name": "Save £20 at Tesco",
 		"brand": "Tesco",
 		"value": "20"
@@ -73,7 +108,15 @@ You can use `nextOffset` for pagination. If it is -1, it means there is no more 
 ### Retrieve voucher by ID
 
 ```sh
-curl 0.0.0.0:8080/vouchers/foo
+curl -v 0.0.0.0:8080/vouchers/foo
+```
+
+### Update voucher
+
+Updating vouchers is simple:
+
+```sh
+curl -XPUT 0.0.0.0:8080/vouchers/foo -d '{"id":"foo","name":"Save £30 at Tesco","brand": "Tesco","value": "30"}'
 ```
 
 ### Delete voucher 
