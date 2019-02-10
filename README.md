@@ -116,7 +116,7 @@ curl -v 0.0.0.0:8080/vouchers/foo
 Updating vouchers is simple:
 
 ```sh
-curl -XPUT 0.0.0.0:8080/vouchers/foo -d '{"id":"foo","name":"Save £30 at Tesco","brand": "Tesco","value": "30"}'
+curl -v -XPUT 0.0.0.0:8080/vouchers/foo -d '{"id":"foo","name":"Save £30 at Tesco","brand": "Tesco","value": "30"}'
 ```
 
 ### Delete voucher 
