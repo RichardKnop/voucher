@@ -64,3 +64,11 @@ func (h *VoucherHandler) handleDelete(w http.ResponseWriter, r *http.Request, vo
 
 	processHandler(f, w, r, 204)
 }
+
+func (h *VoucherHandler) handlePut(w http.ResponseWriter, r *http.Request, voucherID string, data []byte) {
+	f := func(ctx context.Context) (interface{}, int64, error) {
+		return h.svc.UpdateByID(voucherID, data)
+	}
+
+	processHandler(f, w, r, 200)
+}

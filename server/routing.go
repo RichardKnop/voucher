@@ -46,6 +46,21 @@ func (h *VoucherHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.handlePost(w, r, data)
+	case "PUT":
+		if singleResource {
+			data, err := ioutil.ReadAll(r.Body)
+			if err != nil {
+				response.Error(w, "failed to read request data", http.StatusInternalServerError)
+				return
+			}
+			if err := service.ValidateVoucherID(voucherID); err != nil {
+				response.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			h.handlePut(w, r, voucherID, data)
+		} else {
+			response.Error(w, "HTTP method not allowed", http.StatusMethodNotAllowed)
+		}
 	case "DELETE":
 		if singleResource {
 			if err := service.ValidateVoucherID(voucherID); err != nil {
