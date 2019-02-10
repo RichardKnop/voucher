@@ -70,16 +70,16 @@ Which will return list of vouchers:
 
 You can use `nextOffset` for pagination. If it is -1, it means there is no more results. Just append `?offset=$nextOffset` to go to the next page. You can also use `count` to specify number of results per page.
 
-### Delete voucher 
+### Retrieve voucher by ID
 
 ```sh
 curl 0.0.0.0:8080/vouchers/foo
 ```
 
-### Retrieve voucher by ID
+### Delete voucher 
 
 ```sh
-curl 0.0.0.0:8080/vouchers/foo
+curl -XDELETE 0.0.0.0:8080/vouchers/foo
 ```
 
 ## Development Setup
