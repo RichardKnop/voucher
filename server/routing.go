@@ -2,19 +2,17 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 )
 
 // ServeHTTP ...
 func (h *IndexHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	f := func(ctx context.Context) (interface{}, error) {
-		return "Welcome to voucher service", nil
+	f := func(ctx context.Context) (interface{}, int64, error) {
+		return "Welcome to voucher service", 0, nil
 	}
 
-	processHandler(f, w, r)
+	processHandler(f, w, r, 200)
 }
 
 // ServeHTTP ...
@@ -24,17 +22,9 @@ func (h *VoucherHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var (
 		singleResource = len(head) > 0
-		voucherID      int
-		err            error
+		voucherID      = head // todo: validate voucher ID
 	)
 
-	if singleResource {
-		voucherID, err = strconv.Atoi(head)
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Invalid voucher ID %s", head), http.StatusBadRequest)
-			return
-		}
-	}
 	switch r.Method {
 	case "GET":
 		if singleResource {

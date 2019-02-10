@@ -17,8 +17,8 @@ type Server struct {
 // New ...
 func New(svc service.IFace) *Server {
 	return &Server{
-		indexHandler:   &IndexHandler{service: svc},
-		voucherHandler: &VoucherHandler{service: svc},
+		indexHandler:   &IndexHandler{svc: svc},
+		voucherHandler: &VoucherHandler{svc: svc},
 	}
 }
 

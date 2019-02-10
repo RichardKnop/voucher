@@ -33,7 +33,7 @@ docker run --publish 8080:8080 --name test --rm voucher
 
 ### Create a new voucher
 
-curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"foo","name":"Save £20 at Tesco","brand": "Tesco","value": "20","createdAt": "2018-03-01 10:15:53","expiresAt": "2019-03-01 10:15:53"}'
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"foo","name":"Save £20 at Tesco","brand": "Tesco","value": "20"}'
 
 ### Retrieve voucher by ID
 
