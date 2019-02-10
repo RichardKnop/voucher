@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"time"
-	"log"
 
 	"github.com/RichardKnop/voucher/pb"
 	"github.com/go-redis/redis"
@@ -20,7 +20,7 @@ const (
 )
 
 var (
-	isAlpha = regexp.MustCompile(`^[A-Za-z]+$`).MatchString
+	isAlpha = regexp.MustCompile(`^[A-Za-z123]+$`).MatchString
 )
 
 type impl struct {

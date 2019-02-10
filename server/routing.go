@@ -4,14 +4,9 @@ import (
 	"context"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 
 	"github.com/RichardKnop/voucher/server/response"
 	"github.com/RichardKnop/voucher/service"
-)
-
-var (
-	isAlpha = regexp.MustCompile(`^[A-Za-z]+$`).MatchString
 )
 
 // ServeHTTP ...
