@@ -1,0 +1,20 @@
+version: "2"
+
+services:
+  app:
+    container_name: voucher
+    image: voucher:latest
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    ports:
+      - "8080:8080"
+  postgres:
+    image: "postgres"
+    volumes:
+      - "db-data:/var/lib/postgresql/data/pgdata"
+    environment:
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+      POSTGRES_USER: "voucher"
+      POSTGRES_PASSWORD: ""
+      POSTGRES_DB: "voucher"
