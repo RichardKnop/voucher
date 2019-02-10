@@ -55,3 +55,12 @@ func (h *VoucherHandler) handlePost(w http.ResponseWriter, r *http.Request, data
 
 	processHandler(f, w, r, 201)
 }
+
+func (h *VoucherHandler) handleDelete(w http.ResponseWriter, r *http.Request, voucherID string) {
+	f := func(ctx context.Context) (interface{}, int64, error) {
+		httpErrCode, err := h.svc.DeleteByID(voucherID)
+		return nil, httpErrCode, err
+	}
+
+	processHandler(f, w, r, 204)
+}

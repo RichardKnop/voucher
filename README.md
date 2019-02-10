@@ -47,8 +47,8 @@ Which will return list of vouchers:
 
 ```json
 {
-	"cursor": 0,
-	"nextCursor": 0,
+	"offset": 0,
+	"nextOffset": 0,
 	"vouchers": [{
 		"id": "qux",
 		"name": "Save £20 at Tesco",
@@ -68,7 +68,13 @@ Which will return list of vouchers:
 }
 ```
 
-You can use `nextCursoor` for pagination. If it is zero, it means there is no more results.
+You can use `nextOffset` for pagination. If it is -1, it means there is no more results. Just append `?offset=$nextOffset` to go to the next page. You can also use `count` to specify number of results per page.
+
+### Delete voucher 
+
+```sh
+curl 0.0.0.0:8080/vouchers/foo
+```
 
 ### Retrieve voucher by ID
 

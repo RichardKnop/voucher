@@ -51,8 +51,17 @@ func (h *VoucherHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.handlePost(w, r, data)
+	case "DELETE":
+		if singleResource {
+			if err := service.ValidateVoucherID(voucherID); err != nil {
+				response.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			h.handleDelete(w, r, voucherID)
+		} else {
+			response.Error(w, "HTTP method not allowed", http.StatusMethodNotAllowed)
+		}
 	default:
 		response.Error(w, "HTTP method not allowed", http.StatusMethodNotAllowed)
-		return
 	}
 }

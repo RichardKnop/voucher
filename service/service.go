@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"regexp"
 	"time"
+	"log"
 
 	"github.com/RichardKnop/voucher/pb"
 	"github.com/go-redis/redis"
@@ -15,7 +16,7 @@ import (
 const (
 	defaultPageSize = int64(10)
 	prefix          = "voucher_"
-	index = "__index__"
+	index           = "__index__"
 )
 
 var (
@@ -31,6 +32,7 @@ type IFace interface {
 	Create(data []byte) (*pb.Voucher, int64, error)
 	FindByID(voucherID string) (*pb.Voucher, int64, error)
 	FindAll(offset, count int64) ([]*pb.Voucher, int64, int64, error)
+	DeleteByID(voucherID string) (int64, error)
 }
 
 // New ...
@@ -95,6 +97,8 @@ func (svc *impl) Create(data []byte) (*pb.Voucher, int64, error) {
 		return nil, http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
 	}
 
+	log.Printf("Created a new voucher \"%s\"", voucher.Id)
+
 	return voucher, 0, nil
 }
 
@@ -124,6 +128,8 @@ func (svc *impl) FindAll(offset, count int64) ([]*pb.Voucher, int64, int64, erro
 	if count <= 0 {
 		count = defaultPageSize
 	}
+
+	log.Printf("Listing vouchers offset=%d, count=%d", offset, count)
 
 	total := svc.redisClient.ZCount(index, "-inf", "+inf").Val()
 	if offset >= total {
@@ -164,6 +170,25 @@ func (svc *impl) FindAll(offset, count int64) ([]*pb.Voucher, int64, int64, erro
 	}
 
 	return vouchers, nextOffset, 0, nil
+}
+
+// DeleteByID ...
+func (svc *impl) DeleteByID(voucherID string) (int64, error) {
+	log.Printf("Deleting voucher \"%s\"", voucherID)
+
+	voucherID = fmt.Sprintf("%s%s", prefix, voucherID)
+
+	// Delete the voucher and the key from the index
+	_, err := svc.redisClient.Pipelined(func(pipe redis.Pipeliner) error {
+		if delErr := svc.redisClient.Del(voucherID).Err(); delErr != nil {
+			return delErr
+		}
+		return svc.redisClient.ZRem(index, voucherID).Err()
+	})
+	if err != nil {
+		return http.StatusInternalServerError, fmt.Errorf("redis error: %s", err)
+	}
+	return 0, nil
 }
 
 func parseTime(val string, defaultVal time.Time) time.Time {
