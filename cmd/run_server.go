@@ -2,23 +2,57 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
 	"github.com/RichardKnop/voucher/server"
+	"github.com/RichardKnop/voucher/service"
+	"github.com/go-redis/redis"
 )
 
 var (
+	redisHost = os.Getenv("REDIS_HOST")
+	redisDB   = os.Getenv("REDIS_DB")
+
 	wait = time.Duration(5 * time.Second) // for graceful shutdown
 )
 
 // RunServer runs an HTTP server
 func RunServer() error {
-	appServer := server.New()
+	// Connect to redis
+	if redisHost == "" {
+		log.Println("REDIS_HOST environment variable empty, using default")
+		redisHost = "localhost:6379"
+	}
+	if redisDB == "" {
+		log.Println("REDIS_DB environment variable empty, using default")
+		redisDB = "localhost:6379"
+	}
+	redisDBInt, _ := strconv.Atoi(redisDB)
+
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     redisHost, // use default Addr
+		Password: "",        // no password set
+		DB:       redisDBInt,
+	})
+
+	pong, err := redisClient.Ping().Result()
+	if err != nil {
+		return err
+	}
+	fmt.Println(pong)
+
+	// Create service
+	service := service.New(redisClient)
+
+	// Create app server
+	appServer := server.New(service)
 
 	srv := &http.Server{
 		Addr:         "0.0.0.0:8080",

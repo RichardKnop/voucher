@@ -4,6 +4,8 @@ import (
 	"net/http"
 	"path"
 	"strings"
+
+	"github.com/RichardKnop/voucher/service"
 )
 
 // Server ...
@@ -13,10 +15,10 @@ type Server struct {
 }
 
 // New ...
-func New() *Server {
+func New(svc service.IFace) *Server {
 	return &Server{
-		indexHandler:   new(IndexHandler),
-		voucherHandler: new(VoucherHandler),
+		indexHandler:   &IndexHandler{service: svc},
+		voucherHandler: &VoucherHandler{service: svc},
 	}
 }
 

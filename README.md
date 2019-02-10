@@ -26,7 +26,18 @@ And run it:
 
 ```sh
 docker run --publish 8080:8080 --name test --rm voucher
+
 ```
+
+## API
+
+### Create a new voucher
+
+curl -XPOST 0.0.0.0:8080/vouchers -d '{"id":"foo","name":"Save £20 at Tesco","brand": "Tesco","value": "20","createdAt": "2018-03-01 10:15:53","expiresAt": "2019-03-01 10:15:53"}'
+
+### Retrieve voucher by ID
+
+curl 0.0.0.0:8080/vouchers/foo
 
 ## Development Setup
 
@@ -59,3 +70,9 @@ If you make any changes to the `pb/pb.proto` file, you can regenerate Golang str
 ```sh
 protoc --go_out=paths=source_relative:. pb/*.proto
 ```
+
+## Dependency Management
+
+Since Go 1.11, a new recommended dependency management system is via [modules](https://github.com/golang/go/wiki/Modules).
+
+This is one of slight weaknesses of Go as dependency management is not a solved problem. Previously Go was officially recommending to use the [dep tool](https://github.com/golang/dep) but that has been abandoned now in favor of modules.

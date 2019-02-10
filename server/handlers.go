@@ -4,13 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/RichardKnop/voucher/service"
 )
 
 // VoucherHandler ...
-type IndexHandler struct{}
+type IndexHandler struct {
+	service service.IFace
+}
 
 // VoucherHandler ...
-type VoucherHandler struct{}
+type VoucherHandler struct {
+	service service.IFace
+}
 
 func (h *VoucherHandler) handleGetIndex(w http.ResponseWriter, r *http.Request) {
 	f := func(ctx context.Context) (interface{}, error) {

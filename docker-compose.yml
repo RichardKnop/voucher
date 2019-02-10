@@ -9,12 +9,13 @@ services:
       dockerfile: ./Dockerfile
     ports:
       - "8080:8080"
-  postgres:
-    image: "postgres"
-    volumes:
-      - "db-data:/var/lib/postgresql/data/pgdata"
+    links:
+      - redis
     environment:
-      PGDATA: "/var/lib/postgresql/data/pgdata"
-      POSTGRES_USER: "voucher"
-      POSTGRES_PASSWORD: ""
-      POSTGRES_DB: "voucher"
+      REDIS_HOST: 'redis:6379'
+      REDIS_DB: 0
+  redis:
+    container_name: voucher-redis
+    image: redis
+    logging:
+      driver: none

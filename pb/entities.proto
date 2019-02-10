@@ -5,9 +5,10 @@ package pb;
 option go_package = "github.com/RichardKnop/voucher/pb";
 
 message Voucher {
- 	string name = 1;
-	string description = 2;
-	string value = 3;
-	string createdAt = 4;
-	string expiresAt = 5;
+ 	string id = 1;
+ 	string name = 2;
+	string brand = 3;
+	string value = 4;
+	string createdAt = 5;
+	string expiresAt = 6;
 }
