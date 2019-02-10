@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"log"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -13,21 +12,8 @@ import (
 	"github.com/RichardKnop/voucher/server"
 )
 
-// TODO - get from environment
 var (
 	wait = time.Duration(5 * time.Second) // for graceful shutdown
-
-	httpClient = &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        256,
-			MaxIdleConnsPerHost: 256,
-			Dial: (&net.Dialer{
-				Timeout: 5 * time.Second,
-			}).Dial,
-			TLSHandshakeTimeout: 5 * time.Second,
-		},
-		Timeout: time.Duration(5 * time.Second),
-	}
 )
 
 // RunServer runs an HTTP server

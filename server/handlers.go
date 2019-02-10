@@ -2,15 +2,15 @@ package server
 
 import (
 	"context"
-	"net/http"
 	"fmt"
+	"net/http"
 )
 
 // VoucherHandler ...
-type IndexHandler struct {}
+type IndexHandler struct{}
 
 // VoucherHandler ...
-type VoucherHandler struct {}
+type VoucherHandler struct{}
 
 func (h *VoucherHandler) handleGetIndex(w http.ResponseWriter, r *http.Request) {
 	f := func(ctx context.Context) (interface{}, error) {
