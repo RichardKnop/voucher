@@ -32,7 +32,7 @@ func RunServer() error {
 	}
 	if redisDB == "" {
 		log.Println("REDIS_DB environment variable empty, using default")
-		redisDB = "localhost:6379"
+		redisDB = "0"
 	}
 	redisDBInt, _ := strconv.Atoi(redisDB)
 
